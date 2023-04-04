@@ -1,44 +1,29 @@
 from kafka import KafkaProducer
 from kafka.errors import KafkaError
 import msgpack
+from dotenv import load_dotenv
+import os
 
-producer = KafkaProducer(bootstrap_servers=['localhost:9092'],value_serializer=msgpack.dumps,retries=5)
+load_dotenv()
 
+server_ip = os.getenv("SERVER_IP")
+
+producer = KafkaProducer(bootstrap_servers=[str(server_ip+':9092')],
+                         retries=5,
+                         value_serializer=msgpack.dumps)
+
+print(producer.bootstrap_connected())
 # Asynchronous by default
-future = producer.send('my-topic', {'key': 'value'})
+future = producer.send(topic='my-topic', value='value')
 
 # Block for 'synchronous' sends
 try:
     record_metadata = future.get(timeout=10)
-except KafkaError:
+    print("%s:%d:%d"%(record_metadata.topic,record_metadata.partition,record_metadata.offset))
+except KafkaError as err:
     # Decide what to do if produce request failed...
+    print(err.args)
     print("exception moment, idk waht lmao")
     pass
 
-# Successful result returns assigned partition and offset
-print (record_metadata.topic)
-print (record_metadata.partition)
-print (record_metadata.offset)
-
-
-
-# # produce asynchronously
-# for _ in range(100):
-#     producer.send('my-topic', b'msg')
-
-# def on_send_success(record_metadata):
-#     print(record_metadata.topic)
-#     print(record_metadata.partition)
-#     print(record_metadata.offset)
-
-# def on_send_error(excp):
-
-
-#     print('I am an errback',excp)
-#     # handle exception
-
-# # produce asynchronously with callbacks
-# producer.send('my-topic', b'raw_bytes').add_callback(on_send_success).add_errback(on_send_error)
-
-# block until all async messages are sent
 producer.flush()
