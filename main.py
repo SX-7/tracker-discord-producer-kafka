@@ -23,7 +23,6 @@ try:
 except KafkaError as err:
     # Decide what to do if produce request failed...
     print(err.args)
-    print("exception moment, idk waht lmao")
     pass
 
 producer.flush()
