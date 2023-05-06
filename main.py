@@ -3,6 +3,10 @@
 # - Convert+send messages over to Kafka server
 # In order to limit the boilerplate on producer side, decrease data size, we're only sending basic info, and standardazing it whenever we can
 # It is up to consumer to create meaningful messages in UI from data from Kafka server
+# TODO: Change to raws? To ensure catching - specifically for emojis.
+# Could be out of scope of the project though
+# TODO: More asynchronicity
+# Maybe it's asynchronous enough, but it's always worth looking at different possibilities
 
 from kafka import KafkaProducer
 from kafka.errors import KafkaError
@@ -11,35 +15,42 @@ from dotenv import load_dotenv
 import os
 import discord
 from typing import Union, Any
+from pytermgui import tim
 
 # load data
 load_dotenv()
 
-server_ip = os.getenv("SERVER_IP")
+server_ip = os.getenv("KAFKA_SERVER_IP")
 bot_token = os.getenv("DISCORD_BOT_TOKEN")
+kafka_username = os.getenv("KAFKA_USERNAME")
+kafka_password = os.getenv("KAFKA_PASSWORD")
+
 # init connection
 producer = KafkaProducer(bootstrap_servers=[str(server_ip)],
                          retries=5,
                          value_serializer=msgpack.dumps,
-                         key_serializer=msgpack.dumps)
+                         key_serializer=msgpack.dumps,
+                         sasl_mechanism="PLAIN",
+                         security_protocol="SASL_PLAINTEXT",
+                         sasl_plain_username=kafka_username,
+                         sasl_plain_password=kafka_password
+                         )
 
 if producer.bootstrap_connected():
-    print("Estabilished connection with Kafka server")
+    tim.print("[blue]INIT[/]    Estabilished connection with Kafka server")
 
 # default logging config for discord.py will print info on success
 client = discord.Client(intents=discord.Intents.all())
 
 
-# TODO: More asynchronicity
-
-
 def send_message(producer: KafkaProducer, message_key: str, message_data: dict[str, Any]) -> None:
     # helper function for sending data
-    future = producer.send(topic='my-topic', value=message_data,
+    future = producer.send(topic=f'discord-{kafka_username}-all', value=message_data,
                            key=message_key)
     # Block for 'synchronous' sends
     try:
         record_metadata = future.get(timeout=10)
+        # To be restructured
         print("%s:%d:%d" % (record_metadata.topic,
                             record_metadata.partition, record_metadata.offset))
     except KafkaError as err:
@@ -75,9 +86,7 @@ def extract_reaction_data(reaction: discord.Reaction) -> dict[str, Any]:
 @client.event
 # useful paste-in from documentiation
 async def on_ready():
-    print(f'We have logged in as {client.user}')
-
-# TODO: Change to raws? To ensure catching
+    tim.print(f'[blue]INIT[/]   We have logged in as {client.user}')
 
 
 @client.event
@@ -91,9 +100,6 @@ async def on_message(message: discord.Message):
     }
     send_message(producer=producer, message_data=message_data,
                  message_key=message.guild.id)
-
-
-# TODO: increase consistency between messages
 
 
 @client.event
