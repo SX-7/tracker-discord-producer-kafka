@@ -3,8 +3,6 @@
 # - Convert+send messages over to Kafka server
 # In order to limit the boilerplate on producer side, decrease data size, we're only sending basic info, and standardazing it whenever we can
 # It is up to consumer to create meaningful messages in UI from data from Kafka server
-# TODO: Change to raws? To ensure catching - specifically for emojis.
-# Could be out of scope of the project though
 # TODO: More asynchronicity
 # Maybe it's asynchronous enough, but it's always worth looking at different possibilities
 
@@ -165,7 +163,7 @@ async def on_reaction_clear(message: discord.Message, reactions: list[discord.Re
     message_data = {
         "action_id": 7,
         "message": extract_message_data(message),
-        "reaction": [{extract_reaction_data(reaction)}for reaction in reactions]
+        "reaction": [extract_reaction_data(reaction)for reaction in reactions]
     }
     send_message(producer=producer, message_data=message_data,
                  message_key=message.guild.id)
