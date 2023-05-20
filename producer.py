@@ -7,7 +7,6 @@
 # Maybe it's asynchronous enough, but it's always worth looking at different possibilities
 
 from kafka import KafkaProducer
-from kafka.errors import KafkaError
 import msgpack
 from dotenv import load_dotenv
 import os
@@ -26,6 +25,7 @@ kafka_password = os.getenv("KAFKA_PASSWORD")
 # init connection
 producer = KafkaProducer(bootstrap_servers=[str(server_ip)],
                          retries=5,
+                         request_timeout_ms=10000,
                          value_serializer=msgpack.dumps,
                          key_serializer=msgpack.dumps,
                          sasl_mechanism="PLAIN",
@@ -40,21 +40,25 @@ if producer.bootstrap_connected():
 # default logging config for discord.py will print info on success
 client = discord.Client(intents=discord.Intents.all())
 
+def on_send_success(record_metadata):
+    print("%s:%d:%d" % (record_metadata.topic,
+                            record_metadata.partition, record_metadata.offset))
 
+def on_send_error(excp):
+    print(excp.args)
+
+    # handle exception
 def send_message(producer: KafkaProducer, message_key: str, message_data: dict[str, Any]) -> None:
     # helper function for sending data
-    future = producer.send(topic=f'discord-{kafka_username}-all', value=message_data,
-                           key=message_key)
-    # Block for 'synchronous' sends
-    try:
-        record_metadata = future.get(timeout=10)
-        # To be restructured
-        print("%s:%d:%d" % (record_metadata.topic,
-                            record_metadata.partition, record_metadata.offset))
-    except KafkaError as err:
-        # Decide what to do if produce request failed...
-        print(err.args)
-        pass
+    producer.send(
+        topic=f'discord-{kafka_username}-all',
+        value=message_data,
+        key=message_key
+    ).add_callback(
+        on_send_success
+    ).add_errback(
+        on_send_error
+    )
 
 
 def extract_message_data(message: discord.Message) -> dict[str, Any]:

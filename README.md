@@ -1,4 +1,4 @@
 # tracker-discord-producer-kafka
-This is the producer in consumer - kafka server - producer relationship.
+Contains the producer, consumer is at https://github.com/SX-7/tracker-consumer-kafka
 
-It is intented to be deployed as a Discord bot. The consumer is at [Insert repo here]
+Each should be ran seperately, and it is not neccesary to have one *and* the other online at the same time
